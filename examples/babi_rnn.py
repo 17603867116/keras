@@ -18,7 +18,9 @@ from keras.preprocessing.sequence import pad_sequences
 Trains two recurrent neural networks based upon a story and a question.
 The resulting merged vector is then queried to answer a range of bAbI tasks.
 
-The results are comparable to those for an LSTM model provided in Weston et al.:
+The results are comparable to those for an LSTM model provided in Weston
+et al.:
+
 "Towards AI-Complete Question Answering: A Set of Prerequisite Toy Tasks"
 http://arxiv.org/abs/1502.05698
 
@@ -86,7 +88,8 @@ def tokenize(sent):
 def parse_stories(lines, only_supporting=False):
     '''Parse stories provided in the bAbi tasks format
 
-    If only_supporting is true, only the sentences that support the answer are kept.
+    If only_supporting is true, only the sentences that support the answer are
+    kept.
     '''
     data = []
     story = []
@@ -116,13 +119,16 @@ def parse_stories(lines, only_supporting=False):
 
 
 def get_stories(f, only_supporting=False, max_length=None):
-    '''Given a file name, read the file, retrieve the stories, and then convert the sentences into a single story.
+    """Retrieve the stories with concatenated sentences.
 
-    If max_length is supplied, any stories longer than max_length tokens will be discarded.
-    '''
+    If max_length is supplied, any stories longer than max_length tokens
+    will be discarded.
+    """
     data = parse_stories(f.readlines(), only_supporting=only_supporting)
     flatten = lambda data: reduce(lambda x, y: x + y, data)
-    data = [(flatten(story), q, answer) for story, q, answer in data if not max_length or len(flatten(story)) < max_length]
+    data = [(flatten(story), q, answer)
+            for story, q, answer in data
+            if not max_length or len(flatten(story)) < max_length]
     return data
 
 
@@ -138,7 +144,9 @@ def vectorize_stories(data, word_idx, story_maxlen, query_maxlen):
         X.append(x)
         Xq.append(xq)
         Y.append(y)
-    return pad_sequences(X, maxlen=story_maxlen), pad_sequences(Xq, maxlen=query_maxlen), np.array(Y)
+    X = pad_sequences(X, maxlen=story_maxlen)
+    Xq = pad_sequences(Xq, maxlen=query_maxlen)
+    return X, Xq, np.array(Y)
 
 RNN = recurrent.GRU
 EMBED_HIDDEN_SIZE = 50
@@ -146,9 +154,12 @@ SENT_HIDDEN_SIZE = 100
 QUERY_HIDDEN_SIZE = 100
 BATCH_SIZE = 32
 EPOCHS = 20
-print('RNN / Embed / Sent / Query = {}, {}, {}, {}'.format(RNN, EMBED_HIDDEN_SIZE, SENT_HIDDEN_SIZE, QUERY_HIDDEN_SIZE))
+print('RNN / Embed / Sent / Query = {}, {}, {}, {}'.format(
+      RNN, EMBED_HIDDEN_SIZE, SENT_HIDDEN_SIZE, QUERY_HIDDEN_SIZE))
 
-path = get_file('babi-tasks-v1-2.tar.gz', origin='http://www.thespermwhale.com/jaseweston/babi/tasks_1-20_v1-2.tar.gz')
+path = get_file('babi-tasks-v1-2.tar.gz',
+                origin='http://www.thespermwhale.com/jaseweston/babi/'
+                       'tasks_1-20_v1-2.tar.gz')
 tar = tarfile.open(path)
 # Default QA1 with 1000 samples
 # challenge = 'tasks_1-20_v1-2/en/qa1_single-supporting-fact_{}.txt'
@@ -161,7 +172,8 @@ challenge = 'tasks_1-20_v1-2/en/qa2_two-supporting-facts_{}.txt'
 train = get_stories(tar.extractfile(challenge.format('train')))
 test = get_stories(tar.extractfile(challenge.format('test')))
 
-vocab = sorted(reduce(lambda x, y: x | y, (set(story + q + [answer]) for story, q, answer in train + test)))
+vocab = sorted(reduce(lambda x, y: x | y, (set(story + q + [answer])
+                      for story, q, answer in train + test)))
 # Reserve 0 for masking via pad_sequences
 vocab_size = len(vocab) + 1
 word_idx = dict((c, i + 1) for i, c in enumerate(vocab))
@@ -191,9 +203,12 @@ model = Sequential()
 model.add(Merge([sentrnn, qrnn], mode='concat'))
 model.add(Dense(vocab_size, activation='softmax'))
 
-model.compile(optimizer='adam', loss='categorical_crossentropy', class_mode='categorical')
+model.compile(optimizer='adam', loss='categorical_crossentropy',
+              class_mode='categorical')
 
 print('Training')
-model.fit([X, Xq], Y, batch_size=BATCH_SIZE, nb_epoch=EPOCHS, validation_split=0.05, show_accuracy=True)
-loss, acc = model.evaluate([tX, tXq], tY, batch_size=BATCH_SIZE, show_accuracy=True)
+model.fit([X, Xq], Y, batch_size=BATCH_SIZE, nb_epoch=EPOCHS,
+          validation_split=0.05, show_accuracy=True)
+loss, acc = model.evaluate([tX, tXq], tY, batch_size=BATCH_SIZE,
+                           show_accuracy=True)
 print('Test loss / test accuracy = {:.4f} / {:.4f}'.format(loss, acc))
