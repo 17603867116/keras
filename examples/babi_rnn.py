@@ -13,6 +13,7 @@ from keras.layers.core import Dense, Merge
 from keras.layers import recurrent
 from keras.models import Sequential
 from keras.preprocessing.sequence import pad_sequences
+from keras.initializations import normal, identity
 
 '''
 Trains two recurrent neural networks based upon a story and a question.
@@ -58,12 +59,13 @@ Notes:
 In comparison, the Facebook paper achieves 50% and 20% for the LSTM baseline.
 
 - The task does not traditionally parse the question separately. This likely
-improves accuracy and is a good example of merging two RNNs.
+  improves accuracy and is a good example of merging two RNNs.
 
-- The word vector embeddings are not shared between the story and question RNNs.
+- The word vector embeddings are not shared between the story and question
+  RNNs.
 
 - See how the accuracy changes given 10,000 training samples (en-10k) instead
-of only 1000. 1000 was used in order to be comparable to the original paper.
+  of only 1000. 1000 was used in order to be comparable to the original paper.
 
 - Experiment with GRU, LSTM, and JZS1-3 as they give subtly different results.
 
@@ -149,6 +151,7 @@ def vectorize_stories(data):
     return X, Xq, np.array(Y)
 
 RNN = recurrent.GRU
+SimpleRNN = recurrent.SimpleRNN
 EMBED_HIDDEN_SIZE = 50
 SENT_HIDDEN_SIZE = 100
 QUERY_HIDDEN_SIZE = 100
@@ -193,11 +196,18 @@ print('Build model...')
 
 sentrnn = Sequential()
 sentrnn.add(Embedding(vocab_size, EMBED_HIDDEN_SIZE, mask_zero=True))
-sentrnn.add(RNN(EMBED_HIDDEN_SIZE, SENT_HIDDEN_SIZE, return_sequences=False))
-
+# sentrnn.add(RNN(EMBED_HIDDEN_SIZE, SENT_HIDDEN_SIZE, return_sequences=False))
+sentrnn.add(SimpleRNN(input_dim=EMBED_HIDDEN_SIZE, output_dim=SENT_HIDDEN_SIZE,
+                      init=lambda shape: normal(shape, scale=0.001),
+                      inner_init=lambda shape: identity(shape, scale=.9),
+                      activation='relu', return_sequences=False))
 qrnn = Sequential()
 qrnn.add(Embedding(vocab_size, EMBED_HIDDEN_SIZE))
-qrnn.add(RNN(EMBED_HIDDEN_SIZE, QUERY_HIDDEN_SIZE, return_sequences=False))
+# qrnn.add(RNN(EMBED_HIDDEN_SIZE, QUERY_HIDDEN_SIZE, return_sequences=False))
+qrnn.add(SimpleRNN(input_dim=EMBED_HIDDEN_SIZE, output_dim=QUERY_HIDDEN_SIZE,
+                   init=lambda shape: normal(shape, scale=0.001),
+                   inner_init=lambda shape: identity(shape, scale=0.9),
+                   activation='relu', return_sequences=False))
 
 model = Sequential()
 model.add(Merge([sentrnn, qrnn], mode='concat'))
