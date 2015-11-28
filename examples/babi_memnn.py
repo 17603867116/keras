@@ -9,6 +9,8 @@ from functools import reduce
 import tarfile
 import numpy as np
 import re
+from time import time
+
 
 """
 Train a memory network on the bAbI dataset.
@@ -105,7 +107,7 @@ challenges = {
     # QA2 with 10,000 samples
     'two_supporting_facts_10k': 'tasks_1-20_v1-2/en-10k/qa2_two-supporting-facts_{}.txt',
 }
-challenge_type = 'single_supporting_fact_10k'
+challenge_type = 'two_supporting_facts_10k'
 challenge = challenges[challenge_type]
 
 print('Extracting stories for the challenge:', challenge_type)
@@ -147,6 +149,7 @@ print('answers: binary (1 or 0) tensor of shape (samples, vocab_size)')
 print('answers_train shape:', answers_train.shape)
 print('answers_test shape:', answers_test.shape)
 print('-')
+t0 = time()
 print('Compiling...')
 
 # embed the input sequence into a sequence of vectors
@@ -195,6 +198,8 @@ answer.add(Activation('softmax'))
 
 answer.compile(optimizer='rmsprop', loss='categorical_crossentropy')
 # Note: you could use a Graph model to avoid repeat the input twice
+print('Model construction took %0.3fs' % (time() - t0))
+
 answer.fit([inputs_train, queries_train, inputs_train], answers_train,
            batch_size=32,
            nb_epoch=70,
